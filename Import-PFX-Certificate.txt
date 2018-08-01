@@ -28,6 +28,6 @@ Get-ChildItem -Path cert:\LocalMachine\My\* |Where-Object {$_.Subject -ilike "*$
 
 
 
-
+# At the command prompt (cmd.exe) you can use certutil to manage certificates.
 
 # In powershell, when in doubt about a command, use get-help for more details about commands and context. (Ex: get-help Import-PfxCertificate-detailed)
