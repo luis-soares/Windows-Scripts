@@ -1,0 +1,33 @@
+# Luis Antonio Soares da Silva (lui_eu@msn.com)
+#Import a PFX Certificate to Server Core
+
+#Set Credentials to import certificate
+$certpass=Get-Credential
+
+#Import certificate to Computer --> Personal --> Certificate
+Import-PfxCertificate -FilePath C:\certificado\kubernetes-cert.pfx -CertStoreLocation Cert:\LocalMachine\My\ -Pas
+sword $pass.Password
+
+#Import certificate to Computer --> Intermediate Certification Authorities --> Certificate
+Import-PfxCertificate -FilePath C:\certificado\kubernetes-cert.pfx -CertStoreLocation Cert:\LocalMachine\CA\ -Pas
+sword $pass.Password
+
+#Import certificate to Computer --> Trusted Root Certification Authorities --> Certificate
+Import-PfxCertificate -FilePath C:\certificado\kubernetes-cert.pfx -CertStoreLocation Cert:\LocalMachine\Root\ -Pas
+sword $pass.Password
+
+#Import certificate to Computer --> Enterprise Trust --> Certificate
+Import-PfxCertificate -FilePath C:\certificado\kubernetes-cert.pfx -CertStoreLocation Cert:\LocalMachine\Trust\ -
+Password $pass.Password
+
+
+#Verify certificates
+$certificatesubj=Read-host "Please insert the certificate subject or part of that - Ex: CN=Kubernetes,CN=luren,CN=com,CN=br"
+Get-ChildItem -Path cert:\LocalMachine\My\* |Where-Object {$_.Subject -ilike "*$certificatesubj*"}
+
+
+
+
+
+
+# In powershell, when in doubt about a command, use get-help for more details about commands and context. (Ex: get-help Import-PfxCertificate-detailed)
