@@ -1,0 +1,19 @@
+# Luis Antonio Soares da Silva (lui_eu@msn.com)
+#SET Proxy variable
+
+#HTTP PROXY
+[Environment]::SetEnvironmentVariable("HTTP_PROXY", "http://proxy.luren.domain:80/", [EnvironmentVariableTarget]::Machine)
+
+#HTTPS PROXY
+[Environment]::SetEnvironmentVariable("HTTPS_PROXY", "http://proxy.luren.domain:443/", [EnvironmentVariableTarget]::Machine)
+
+#PROXY EXCEPTIONS
+[Environment]::SetEnvironmentVariable("NO_PROXY", "NO_PROXY=127.0.0.1, localhost, 172.16.0.0/12, 10.96.0.0/12, 10.209.32.0/22, Kubernetes, Kubernetes.luren.domain, luren.domain", [EnvironmentVariableTarget]::Machine)
+
+
+
+
+
+# At the command prompt (cmd.exe) you can use setx to manage variables.
+
+# Based on document: https://docs.microsoft.com/en-us/virtualization/windowscontainers/kubernetes/getting-started-kubernetes-windows
