@@ -10,10 +10,12 @@
 #PROXY EXCEPTIONS
 [Environment]::SetEnvironmentVariable("NO_PROXY", "NO_PROXY=127.0.0.1, localhost, 172.16.0.0/12, 10.96.0.0/12, 10.209.32.0/22, Kubernetes, Kubernetes.luren.domain, luren.domain", [EnvironmentVariableTarget]::Machine)
 
-
-
+#Verify proxy variable
+Get-ItemProperty -Path Registry::"HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\Session Manager\Environment\" |select *proxy* |fl
 
 
 # At the command prompt (cmd.exe) you can use setx to manage variables.
+
+# You can use command set to view variables on command prompt.
 
 # Based on document: https://docs.microsoft.com/en-us/virtualization/windowscontainers/kubernetes/getting-started-kubernetes-windows
