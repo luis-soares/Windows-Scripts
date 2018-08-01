@@ -8,4 +8,11 @@ $cert=gci C:\certificado\ -Filter *.crt
 foreach ($certcrt in $cert){ Import-Certificate -FilePath $certcrt.fullname -CertStoreLocation Cert:\LocalMachine\My\ }
 
 #Import CA Certificate to trusted
-Import-Certificate -FilePath C:\certificado\ca.crt -CertStoreLocation Cert:\LocalMachine\My\
+Import-Certificate -FilePath C:\certificado\ca.crt -CertStoreLocation Cert:\LocalMachine\Root\ 
+
+
+
+
+# At the command prompt (cmd.exe) you can use certutil to manage certificates.
+
+# In powershell, when in doubt about a command, use get-help for more details about commands and context. (Ex: get-help Import-Certificate -detailed)
