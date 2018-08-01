@@ -1,0 +1,11 @@
+#How to import certificates CRT on Server
+#create folder
+mkdir c:\certificado 
+#copy your certificates to there
+
+#import certificates
+$cert=gci C:\certificado\ -Filter *.crt
+foreach ($certcrt in $cert){ Import-Certificate -FilePath $certcrt.fullname -CertStoreLocation Cert:\LocalMachine\My\ }
+
+#Import CA Certificate to trusted
+Import-Certificate -FilePath C:\certificado\ca.crt -CertStoreLocation Cert:\LocalMachine\My\
