@@ -1,0 +1,128 @@
+#Script de gerencia via WinRM + PSRemote
+#Luis Antonio Soares da Silva (lui_eu@msn.com)
+#Em desenvolvimento... (27/Ago/2018)
+
+#TESTE VALIDA CRED
+$valcred = read-host "Deseja carregar as credenciais? (S/N) - (N)"
+if ($valcred -ieq "S") {
+
+$cred = Get-Credential -Message "Digite seu usuario e senha do Bancoibi"
+}
+else
+{
+write-host "Credenciais não carregadas"
+}
+
+
+
+
+
+$choice = Read-host "O que deseja fazer?
+(1) Atualizar lista de PSREMOTE
+(2) Listar PS Sessions
+(3) Conectar a um servidor / Validar um servidor
+<Outro valor para sair>
+"
+
+Switch ($choice) {
+
+1 {
+    $choiceb = Read-host "Atualizar lista de PSREMOTE de:
+    (A) Desenvolvimento
+    (B) Homologacao
+    (C) Producao
+    (D) Inserir de forma manual (Host na gerencia)
+    (E) Carregar lista de hosts de arquivo
+    <Outro valor para sair>
+    "
+    switch ($choiceb) {
+    A {write-host "Atualizando Desenvolvimento" 
+    $complist = Get-ADComputer -filter "*" |Where-Object {$_.name -ilike "*ND" -or $_.name -ilike "*DES" -or $_.name -ilike "*CD"} |select Name
+    }
+    
+    B {write-host "Atualizando Homologação" 
+    $complist = Get-ADComputer -filter "*" |Where-Object {$_.name -ilike "*NH" -or $_.name -ilike "*HMG" -or $_.name -ilike "*CH"} |select Name
+    }
+
+    C {write-host "Atualizando Producao" 
+    $complist = Get-ADComputer -filter "*" |Where-Object {$_.name -ilike "*NP" -or $_.name -ilike "*PRD" -or $_.name -ilike "*CP"} |select Name
+    }
+
+    D {write-host "Atualização manual" 
+    $complist = Read-Host "Por favor insira o nome dos Servidores que deseja adicionar a gerencia separados por , (Virgula)"
+    }
+
+    E {write-host "Atualizando Producao" 
+    $complist = Get-ADComputer -filter "*" |Where-Object {$_.name -ilike "*NP" -or $_.name -ilike "*PRD" -or $_.name -ilike "*CP"} |select Name
+    }
+
+    Default {write-host "Nao foi feito uma selecao valida"}
+    }
+
+}
+
+
+2 {
+    $choiceb = Read-host "Listar PSREMOTE de:
+    (A) Desenvolvimento
+    (B) Homologacao
+    (c) Producao
+    <Outro valor para sair>
+    "
+    switch ($choiceb) {
+    A {write-host "Listando Desenvolvimento" }
+    B {write-host "Listando Homologação" }
+    C {write-host "Listando Producao" }
+    Default {write-host "Sair"}
+    }
+
+}
+
+3 {
+    $choiceb = Read-host "Inserir o ID do servidor que deseja conectar (Se não souber, por favor verificar na lista de PS Session - Pressione N  para cancelar e recomecar)"
+
+    switch ($choiceb) {
+    N {write-host "Sair"}
+    
+    
+    Default {write-host "Conectar no ID $choiceb" 
+    
+    Write-host "Voce esta conectado ao servidor $env:computername, o que voce deseja fazer?
+    (A) Verificar a utilizacao de recursos
+    (B) Verificar o status de servicos
+    (C) Verificar eventviewer
+    (D) Logs de aplicacoes
+        
+    "
+     
+ 
+    }
+
+    }
+
+}
+
+}
+
+
+#Atualizando lista
+foreach ($comp in $complist){
+New-PSSession -ComputerName $comp.Name -Name $comp.Name -Credential $cred
+}
+
+<#
+
+
+
+$complist = Get-ADComputer -filter "*" |Where-Object {$_.name -ilike "*NP*"} |select Name
+
+foreach ($comp in $complist){
+
+New-PSSession -ComputerName $comp.Name -Name $comp.Name -Credential $cred
+
+}
+
+Get-PSSession
+
+
+#>
