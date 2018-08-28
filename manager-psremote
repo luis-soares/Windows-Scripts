@@ -1,6 +1,75 @@
 #Script de gerencia via WinRM + PSRemote
 #Luis Antonio Soares da Silva (lui_eu@msn.com)
-#Em desenvolvimento... (27/Ago/2018)
+
+
+#CARREGANDO MODULO TEST-WINRM (https://gallery.technet.microsoft.com/scriptcenter/Test-WinRM-91734e31 - Autor: Ryen Kia Zhi Tang)
+function Test-WinRM { 
+ 
+<#    
+.EXAMPLE 
+    $Test = Test-WinRM -ComputerName Redmond ; if($Test -eq $True){ write-host "Yes!!! Eureka!!! It works!" } 
+    Yes!!! Eureka!!! It works! 
+#>
+ 
+[CmdletBinding( 
+    SupportsShouldProcess=$True, 
+    ConfirmImpact='High')] 
+         
+#define command parameters 
+param 
+( 
+    [Parameter( 
+        Mandatory=$False, 
+        ValueFromPipeline=$True, 
+        ValueFromPipelineByPropertyName=$True)] 
+         
+        $ComputerName = $env:computername, 
+ 
+    [Parameter( 
+        Mandatory=$False, 
+        ValueFromPipeline=$True, 
+        ValueFromPipelineByPropertyName=$True)] 
+        [Alias('T')] 
+        [Switch] $Test 
+         
+) 
+ 
+BEGIN { 
+ 
+    #clear variable 
+    $Result = "" 
+} 
+ 
+PROCESS { 
+ 
+    do{ 
+        
+       try { 
+             
+            #invoke a command to get WinRM service status 
+            $Result = Invoke-Command -ComputerName $ComputerName -ScriptBlock {Get-Service | Where-Object {($_.Name -eq "WinRM") -and ($_.Status -eq "Running")}} -ErrorAction Stop 
+             
+            #success output 
+            if($PSBoundParameters['Verbose']) { Write-Verbose "WinRM - Running" }else{ $True} 
+         
+        }catch{ 
+             
+            #failure output 
+            if($PSBoundParameters['Verbose']) { Write-Verbose "WinRM - Not Running"; Write-Error $_.ToString() }else{ $False } 
+         
+        } 
+         
+        #verify if -Test parameter is specified 
+        if($Test) { Continue }else{ Break } 
+     
+    }while(!$Result?) 
+         
+} 
+ 
+END { } 
+ 
+} #end of #function Test-WinRM 
+
 
 #TESTE VALIDA CRED
 $valcred = read-host "Deseja carregar as credenciais? (S/N) - (N)"
@@ -15,12 +84,10 @@ write-host "Credenciais não carregadas"
 
 
 
-
-
 $choice = Read-host "O que deseja fazer?
 (1) Atualizar lista de PSREMOTE
 (2) Listar PS Sessions
-(3) Conectar a um servidor / Validar um servidor
+(3) Gerenciar um servidor
 <Outro valor para sair>
 "
 
@@ -37,27 +104,38 @@ Switch ($choice) {
     "
     switch ($choiceb) {
     A {write-host "Atualizando Desenvolvimento" 
-    $complist = Get-ADComputer -filter "*" |Where-Object {$_.name -ilike "*ND" -or $_.name -ilike "*DES" -or $_.name -ilike "*CD"} |select Name
-    }
+        $complist = Get-ADComputer -filter "*" |Where-Object {$_.name -ilike "*ND" -or $_.name -ilike "*DES" -or $_.name -ilike "*CD"} |select Name
+        $atualiza = $True
+      }
     
     B {write-host "Atualizando Homologação" 
-    $complist = Get-ADComputer -filter "*" |Where-Object {$_.name -ilike "*NH" -or $_.name -ilike "*HMG" -or $_.name -ilike "*CH"} |select Name
-    }
+        $complist = Get-ADComputer -filter "*" |Where-Object {$_.name -ilike "*NH" -or $_.name -ilike "*HMG" -or $_.name -ilike "*CH"} |select Name
+        $atualiza = $True
+      }
 
     C {write-host "Atualizando Producao" 
-    $complist = Get-ADComputer -filter "*" |Where-Object {$_.name -ilike "*NP" -or $_.name -ilike "*PRD" -or $_.name -ilike "*CP"} |select Name
-    }
+        $complist = Get-ADComputer -filter "*" |Where-Object {$_.name -ilike "*NP" -or $_.name -ilike "*PRD" -or $_.name -ilike "*CP"} |select Name
+        $atualiza = $True
+      }
 
     D {write-host "Atualização manual" 
-    $complist = Read-Host "Por favor insira o nome dos Servidores que deseja adicionar a gerencia separados por , (Virgula)"
-    }
+        $complist = Read-Host "Por favor insira o nome do Servidor que deseja adicionar a gerencia (Adicionar somente 1 servidor)"
+        $atualiza = $True
+      }
 
-    E {write-host "Atualizando Producao" 
-    $complist = Get-ADComputer -filter "*" |Where-Object {$_.name -ilike "*NP" -or $_.name -ilike "*PRD" -or $_.name -ilike "*CP"} |select Name
-    }
+    E {write-host "Atualizacao por arquivo (C:\suporte windows\lista_servers.txt)"
+        write-host "Insira no arquivo a seguir a lista de servidores que sera gerenciado (1 Servidor por linha), apos concluir, salve e pressione <ENTER>"
+        echo $null > "C:\suporte windows\lista_servers.txt"
+        notepad "C:\suporte windows\lista_servers.txt"
+        pause
+        $complist = gc "C:\suporte windows\lista_servers.txt"
+        $atualiza = $True
+      }
 
-    Default {write-host "Nao foi feito uma selecao valida"}
-    }
+    Default {write-host "Nao foi feito uma selecao valida"
+      exit
+      }
+      }
 
 }
 
@@ -70,11 +148,20 @@ Switch ($choice) {
     <Outro valor para sair>
     "
     switch ($choiceb) {
-    A {write-host "Listando Desenvolvimento" }
-    B {write-host "Listando Homologação" }
-    C {write-host "Listando Producao" }
+    A {write-host "Listando Desenvolvimento" 
+        get-pssession |Where-Object {$_.name -ilike "*ND" -or $_.name -ilike "*DES" -or $_.name -ilike "*CD"} |select ID,Name,Availability |ft
+      }
+
+    B {write-host "Listando Homologação"
+        get-pssession |Where-Object {$_.name -ilike "*NH" -or $_.name -ilike "*HMG" -or $_.name -ilike "*CH"} |select ID,Name,Availability |ft
+      }
+
+    C {write-host "Listando Producao" 
+        get-pssession |Where-Object {$_.name -ilike "*NP" -or $_.name -ilike "*PRD" -or $_.name -ilike "*CP"} |select ID,Name,Availability |ft
+      }
+
     Default {write-host "Sair"}
-    }
+      }
 
 }
 
@@ -85,14 +172,16 @@ Switch ($choice) {
     N {write-host "Sair"}
     
     
-    Default {write-host "Conectar no ID $choiceb" 
+    Default {write-host "Conectar no ID $choiceb
+    " 
+    Enter-PSSession -Id $choiceb
     
     Write-host "Voce esta conectado ao servidor $env:computername, o que voce deseja fazer?
     (A) Verificar a utilizacao de recursos
     (B) Verificar o status de servicos
     (C) Verificar eventviewer
     (D) Logs de aplicacoes
-        
+    (S) Sair    
     "
      
  
@@ -105,9 +194,36 @@ Switch ($choice) {
 }
 
 
-#Atualizando lista
-foreach ($comp in $complist){
-New-PSSession -ComputerName $comp.Name -Name $comp.Name -Credential $cred
+#Atualizando lista (Verifica se foi solicitado atualizar e se o host solicitado tem mais de 1 caracter)
+if ($atualiza -eq $true -and $complist -gt 1){
+
+
+foreach ($comp in $complist)
+    {
+    if ($comp.name -ieq $null)
+        {
+         $Test = Test-WinRM -ComputerName $comp ; if($Test -eq $True)
+            {
+            New-PSSession -ComputerName $comp -Name $comp -Credential $cred
+            }
+        else
+            {
+            Write-Host -ForegroundColor Red "Servidor $comp sem comunicacao via WINRM, favor verificar (Consulte http://msdn.microsoft.com/en-us/library/windows/desktop/aa384372(v=vs.85).aspx )"
+            }
+        }
+    else
+        {
+        $Test = Test-WinRM -ComputerName $comp.name ; if($Test -eq $True)
+            {
+            New-PSSession -ComputerName $comp.Name -Name $comp.Name -Credential $cred
+            }
+        else
+            {
+            Write-Host -ForegroundColor Red "Servidor $comp.Name sem comunicacao via WINRM, favor verificar (Consulte http://msdn.microsoft.com/en-us/library/windows/desktop/aa384372(v=vs.85).aspx )"
+            }
+        }
+    }
+
 }
 
 <#
@@ -126,3 +242,6 @@ Get-PSSession
 
 
 #>
+
+Clear-Variable complist
+
