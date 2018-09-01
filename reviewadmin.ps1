@@ -1,4 +1,5 @@
 #Feito por: Luis Antonio Soares da Silva (luissoares@outlook.com)
+#VER https://gallery.technet.microsoft.com/scriptcenter/site/search?f%5B0%5D.Type=RootCategory&f%5B0%5D.Value=localaccount&f%5B0%5D.Text=Gerenciamento%20de%20contas%20locais&f%5B1%5D.Type=SubCategory&f%5B1%5D.Value=groups&f%5B1%5D.Text=Grupos
 
 function mapserver {
 $mapdrive = New-PSDrive -Name $server -PSProvider "FileSystem" -Root "\\$server\c$" -Credential $cred -ErrorAction SilentlyContinue
