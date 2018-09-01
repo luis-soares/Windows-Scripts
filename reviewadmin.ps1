@@ -1,18 +1,14 @@
-#SCRIPT FEITO POR LUIS ANTONIO SOARES DA SILVA (luissoares@outlook.com)
-
-# KB USERS AD - https://technet.microsoft.com/pt-br/library/cc700835.aspx
-
-#Start-Transcript 'C:\Suporte Windows\saida.txt'
+#Feito por: Luis Antonio Soares da Silva (luissoares@outlook.com)
 
 function mapserver {
 $mapdrive = New-PSDrive -Name $server -PSProvider "FileSystem" -Root "\\$server\c$" -Credential $cred -ErrorAction SilentlyContinue
 }
 
 function  unmap {
-Remove-PSDrive -Name $server -ErrorAction SilentlyContinue
+Remove-PSDrive -Name $server -Force -ErrorAction SilentlyContinue
 }
 
-#Function https://gallery.technet.microsoft.com/scriptcenter/Get-LocalGroupMembers-b714517d #Piotrek82 
+#Function https://gallery.technet.microsoft.com/scriptcenter/Get-LocalGroupMembers-b714517d #Feito por: Piotrek82 
 Function Get-LocalGroupMemberComputers {
     [cmdletbinding()]
     #region Parameters
@@ -161,9 +157,143 @@ Function Get-LocalGroupMemberComputers {
 
  }  #FUNCIONANDO
 
+#Function https://gallery.technet.microsoft.com/scriptcenter/Remove-AD-UserGroup-to-f6e9dbfb #Feito por: Jaap Brasser
+function Resolve-SamAccount {
+<#
+.SYNOPSIS
+    Helper function that resolves SAMAccount
+#>
+    param(
+        [string]
+            $SamAccount
+    )
+    
+    process {
+        try
+        {
+            $ADResolve = ([adsisearcher]"(samaccountname=$Trustee)").findone().properties['samaccountname']
+        }
+        catch
+        {
+            $ADResolve = $null
+        }
+
+        if (!$ADResolve) {
+            Write-Warning "User `'$SamAccount`' not found in AD, please input correct SAM Account"
+        }
+        $ADResolve
+    }
+} 
+
+#Function https://gallery.technet.microsoft.com/scriptcenter/Remove-AD-UserGroup-to-f6e9dbfb #Feito por: Jaap Brasser
+function Remove-ADAccountasLocalAdministrator {
+<#
+.SYNOPSIS   
+Script to remove an AD User or group from the Administrators group
+    
+.DESCRIPTION 
+The script can use either a plaintext file or a computer name as input and will remove the trustee (user or group) from the Administrators group on the computer
+	
+.PARAMETER InputFile
+A path that contains a plaintext file with computer names
+
+.PARAMETER Computer
+This parameter can be used instead of the InputFile parameter to specify a single computer or a series of computers using a comma-separated format
+	
+.PARAMETER Trustee
+The SamAccount name of an AD User or AD Group that is to be removed from the Administrators group
+
+.NOTES   
+Name       : Remove-ADAccountasLocalAdministrator.ps1
+Author     : Jaap Brasser
+Version    : 1.0.0
+DateCreated: 2016-08-02
+DateUpdated: 2016-08-02
+
+.LINK
+http://www.jaapbrasser.com
+
+.EXAMPLE
+. .\Remove-ADAccountasLocalAdministrator.ps1
+
+Description
+-----------
+This command dot sources the script to ensure the Remove-ADAccountasLocalAdministrator function is available in your current PowerShell session
+
+.EXAMPLE   
+Remove-ADAccountasLocalAdministrator -Computer Server01 -Trustee JaapBrasser
+
+Description:
+Will remove the the JaapBrasser account from the Administrators group on Server01
+
+.EXAMPLE   
+Remove-ADAccountasLocalAdministrator -Computer 'Server01','Server02' -Trustee Contoso\HRManagers
+
+Description:
+Will remove the HRManagers group in the contoso domain as a member of Administrators group on Server01 and Server02
+
+.EXAMPLE   
+Remove-ADAccountasLocalAdministrator -InputFile C:\ListofComputers.txt -Trustee User01
+
+Description:
+Will remove the User01 account to the Administrators group on all servers and computernames listed in the ListofComputers file
+#>
+    [CmdletBinding()]
+    param(
+        [Parameter(ParameterSetName= 'InputFile',
+                   Mandatory       = $true
+        )]
+        [string]
+            $InputFile,
+        [Parameter(ParameterSetName= 'Computer',
+                   Mandatory       = $true
+        )]
+        [string[]]
+            $Computer,
+        [Parameter(Mandatory=$true)]
+        [string]
+            $Trustee
+    )
+
+    if ($Trustee -notmatch '\\') {
+        $ADResolved = (Resolve-SamAccount -SamAccount $Trustee)
+        $Trustee = 'WinNT://',"$env:userdomain",'/',$ADResolved -join ''
+    } else {
+        $ADResolved = ($Trustee -split '\\')[1]
+        $DomainResolved = ($Trustee -split '\\')[0]
+        $Trustee = 'WinNT://',$DomainResolved,'/',$ADResolved -join ''
+    }
+
+    if (!$InputFile) {
+	    $Computer | ForEach-Object {
+		    Write-Verbose "Removing '$ADResolved' from Administrators group on '$_'"
+		    try {
+			    ([adsi]"WinNT://$_/Administrators,group").psbase.remove($Trustee)
+			    Write-Verbose "Successfully completed command for '$ADResolved' on '$_'"
+		    } catch {
+			    Write-Warning $_
+		    }	
+	    }
+    } else {
+	    if (!(Test-Path -Path $InputFile)) {
+		    Write-Warning 'Input file not found, please enter correct path'
+	    }
+	    Get-Content -Path $InputFile | ForEach-Object {
+		    Write-Verbose "Removing '$ADResolved' from Administrators group on '$_'"
+		    try {
+			    ([adsi]"WinNT://$_/Administrators,group").psbase.remove($Trustee)
+			    Write-Verbose 'Successfully completed command'
+		    } catch {
+			    Write-Warning $_
+		    }        
+	    }
+    }
+}
+
+
 function usergroup {
 
-#Luis Antonio Soares da Silva (luissoares@outlook.com)
+
 #Get User local groups before Windows Server 2016
 
 #Load local groups to Variable
@@ -218,6 +348,9 @@ Write-host "============================================"
 
 } #FUNCIONANDO
 
+
+
+
 Function RemoveGroup {
 foreach ($server in $servers){
 write-host "analisando $server... "
@@ -233,22 +366,28 @@ $valida = "$grupobaseline" -match "$adm"
 
 if ($valida -ieq "true"){
     write-host -ForegroundColor green "O grupo $adm do servidor $server esta correto." 
-    
-
     }
 else
     {
      Write-Host -ForegroundColor Red "O grupo $adm do servidor $server esta errado e sera removido"
     #COMANDO DE REMOCAO
-    
+    $grouprm = [ADSI]"WinNT://$server/Administrators,group"
+    $grouprm.Children(
+
+    #$grouprm.add("winnt://$server/originalti\$adm,user")
+    #$grouprm.Remove("WinNT://$server/originalti\$adm,user")
+    #$grouprm | select -Property *
     }
+
+
+    
    
    
 unmap
 
  }
 
-
+  }
 
 }  #CRIANDO
 
