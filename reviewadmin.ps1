@@ -1,6 +1,18 @@
+#SCRIPT FEITO POR LUIS ANTONIO SOARES DA SILVA (luissoares@outlook.com)
+
 # KB USERS AD - https://technet.microsoft.com/pt-br/library/cc700835.aspx
 
 #Start-Transcript 'C:\Suporte Windows\saida.txt'
+
+function mapserver {
+$mapdrive = New-PSDrive -Name $server -PSProvider "FileSystem" -Root "\\$server\c$" -Credential $cred -ErrorAction SilentlyContinue
+}
+
+function  unmap {
+Remove-PSDrive -Name $server -ErrorAction SilentlyContinue
+}
+
+#Function https://gallery.technet.microsoft.com/scriptcenter/Get-LocalGroupMembers-b714517d #Piotrek82 
 Function Get-LocalGroupMemberComputers {
     [cmdletbinding()]
     #region Parameters
@@ -149,6 +161,40 @@ Function Get-LocalGroupMemberComputers {
 
  }  #FUNCIONANDO
 
+function usergroup {
+
+#Luis Antonio Soares da Silva (luissoares@outlook.com)
+#Get User local groups before Windows Server 2016
+
+#Load local groups to Variable
+$LocalGroups = Get-WmiObject Win32_Group -Filter "LocalAccount=True" | foreach { $_.Name }
+
+#Load user list to variable
+$UserList = gc 'C:\suporte windows\lista\usuarios.txt'
+
+# Validate every group to find users and write on screen
+foreach ($group in $LocalGroups) {
+
+
+$validate = net localgroup $group
+
+foreach ($user in $UserList){
+
+$exist = $validate |findstr -i $user 
+
+if ($exist -ne $null) {
+Write-host "User $user member of $group"
+Clear-Variable $validate -ErrorAction SilentlyContinue
+}
+
+
+
+ }
+
+ }
+
+} #TALVEZ USAR
+
 Function Listcomp {
 foreach ($server in $servers){
 #$grupos = Get-LocalGroup -Name @("administrators","administradores") -ErrorAction SilentlyContinue 
@@ -159,11 +205,11 @@ Write-host "Administradores:"
 foreach ($grupo in $grupos){
 
 #MAPEAMENTO DE SERVIDOR DE OUTROS DOMINIOS PARA CONECTAR PELO GTW
-$mapdrive = New-PSDrive -Name $server -PSProvider "FileSystem" -Root "\\$server\c$" -Credential $cred -ErrorAction SilentlyContinue
+mapserver
 
 Get-LocalGroupMemberComputers -Group $grupo -Computername $server 
 
-Remove-PSDrive -Name $server -ErrorAction SilentlyContinue
+unmap
 }
 
 Write-host "============================================"  
@@ -172,54 +218,140 @@ Write-host "============================================"
 
 } #FUNCIONANDO
 
-Function ChangeGroup {
-
+Function RemoveGroup {
 foreach ($server in $servers){
+write-host "analisando $server... "
+mapserver
 
-Write-host "Servidor $server " 
-Write-host "Alteracao do grupo Administrators em andamento..." 
+$grupoatualcomparelist = Get-LocalGroupMemberComputers -Group "Administrators" -Computername $server|? {$_.name -or $_.account} -ErrorAction SilentlyContinue
 
-foreach ($grupo in $grupos){
-
-#MAPEAMENTO DE SERVIDOR DE OUTROS DOMINIOS PARA CONECTAR PELO GTW
-$mapdrive = New-PSDrive -Name $server -PSProvider "FileSystem" -Root "\\$server\c$" -Credential $cred -ErrorAction SilentlyContinue
-
-$group = [ADSI]"WinNT://$server/$grupo,group"
-
-Remove-PSDrive -Name $server -ErrorAction SilentlyContinue
-}
-
-Write-host "============================================"  
+foreach ($adm in $grupoatualcomparelist.account){
 
 
+$valida = "$grupobaseline" -match "$adm"
 
 
+if ($valida -ieq "true"){
+    write-host -ForegroundColor green "O grupo $adm do servidor $server esta correto." 
+    
+
+    }
+else
+    {
+     Write-Host -ForegroundColor Red "O grupo $adm do servidor $server esta errado e sera removido"
+    #COMANDO DE REMOCAO
+    
+    }
+   
+   
+unmap
+
+ }
 
 
-
-
-
-
-
-$group = [ADSI]"WinNT://$server/$appgrupo,group"
-
-$group.Add("WinNT://$server/$usuario,user")
-
-}
 
 }  #CRIANDO
 
-Function CompareComp {
+Function CompareGroup {
+#para cada servidor (Feito na funcao ou no switch, fara:)
+#receber as informações do GET-LocalGroupMembers X Comparar com Baseline
+
+foreach ($server in $servers){
+write-host "analisando $server... "
+mapserver
+
+$grupoatualcomparelist = Get-LocalGroupMemberComputers -Group "Administrators" -Computername $server|? {$_.name -or $_.account} -ErrorAction SilentlyContinue
+# $grupoatualcompare.account
+<#TESTE
+{
+Get-LocalGroupMemberComputers -Group "Administrators" -Computername "docker01" |% {$_.name -or $_.account}
+Write-host $grupoatualcompare
+}
+#FIM TESTE
+#>
+#PAREI AQUI... COMPARE INVERTIDO
 
 
+#PARA CADA ADMIN QUE EXISTE, VOU PESQUISAR O BASELINE
+#foreach ($adm in $grupoatualcompare.account){write-host "teste $adm"}
+foreach ($adm in $grupoatualcomparelist.account){
 
-} #CRIANDO
+<#
+#foreach ($adm in "batata"){
+#$compare = $grupoatualcompare |findstr $adm
+#$basedefault
+#$valida = Get-LocalGroupMemberComputers -Group "Administrators" -ValidMember @("$adm") -Computername $server -ErrorAction SilentlyContinue |? {$_.account -ilike @("$basedefault")}
+#VERIFICAR MEMBRO NO BASELINE 
+#$adm = "domain admin"
+#>
+
+#$adm = "domain admins"
+
+$valida = "$grupobaseline" -match "$adm"
+
+
+<#
+write-host "teste valida"
+
+write-host "baseline $grupobaseline"
+write-host "usuario $adm"
+
+$grupobaseline |findstr "$adm"
+
+write-host "fim do teste valida"
+#>
+
+#Get-LocalGroupMemberComputers -Group "Administrators" -ValidMember @("$adm") -Computername $server
+
+#write-host "$server"
+#write-host "DEBUG - Procurando $adm dentro do baseline" 
+
+
+#Get-LocalGroupMemberComputers -Group Administrators -Computername $server
+
+
+if ($valida -ieq "true"){
+    write-host -ForegroundColor green "O grupo $adm esta correto." 
+    }
+else
+    {
+     Write-Host -ForegroundColor Red "O grupo $adm esta errado"
+    }
+   
+   
+  # clear-variable valida 
+#> 
+  } #COMPARE ADM EM GRUPOS
+unmap
+
+ }
+} #FUNCIONANDO
 
 Function SpecialGroup {
 
 
 
 } #CRIANDO
+
+Function baselinegroup {
+
+
+} #CRIANDO
+
+
+#CARREGA BASELINE VAR
+$baseapp = gc 'C:\Suporte Windows\Lista\baseline\aplicacao.txt'
+$basedba = gc 'C:\Suporte Windows\Lista\baseline\dba.txt'
+$baseprod = gc 'C:\Suporte Windows\Lista\baseline\producao.txt'
+$basedefault = gc 'C:\Suporte Windows\Lista\baseline\default.txt'
+$basepersosrv = gci 'C:\Suporte Windows\Lista\baseline\personalizado\' |% {$_.name} |% {$_.split(".txt")} |findstr /R "[^0-9]"
+
+
+#TESTE DO BASELINE PERSONALIZADO
+#foreach ($teste in $baseperso){write-host "servidor $teste"}
+
+
+$serverbase
 
 $gruposadm = "administradores","administrators"
 $specialgrpbkp = "power users","remote desktop users","backup operators"
@@ -243,8 +375,7 @@ $domain = Read-Host "Qual dominio vai verificar?
 (C) BRADESCOCARTOES
 (D) AMEXDC
 (E) GERAL
-"
-
+" #VERIFICA DOMINIO
 switch ($domain){
     A { $cred = Get-Credential -Message "Entrar com as credenciais do BANCOIBI"
        read-host "Insira os nomes dos servidores no arquivo $serveribi (1 nome por linha), pressione <ENTER> para abrir o arquivo"
@@ -279,14 +410,14 @@ switch ($domain){
       }
     
     Default {Write-host "Invalido"; exit}
-        }
+        } #FIM VERIFICA DOMINIO
+
 
 $funcao = Read-Host "O que deseja fazer:
 (A) Listar Grupos
 (B) Validar de acordo com a baseline
 (C) Alterar/Corrigir Grupos
 (D) Grupos especiais Backup/Coti"
-
 switch ($funcao){
 
 A {$funcao="lista";listcomp
@@ -302,9 +433,15 @@ B {$funcao="valida"
     (C) APLICACOES
     (D) PERSONALIZADO
     "
-    CompareComp
+    switch ($baseline) {
+    A {$grupobaseline = $basedefault ; CompareGroup}
+    B {$grupobaseline = $basedba ; CompareGroup}
+    C {$grupobaseline = $baseapp ; CompareGroup}
+    D {$grupobaseline = $baseperso ; CompareGroup}
+    Default {exit}
     }
 
+  }
 
 C {$funcao="altera"
     $grupos = $gruposadm
@@ -314,7 +451,17 @@ C {$funcao="altera"
     (C) APLICACOES
     (D) PERSONALIZADO
     "
-    ChangeGroup
+    switch ($baseline) {
+    A {$grupobaseline = $basedefault ; ChangeGroup}
+    B {$grupobaseline = $basedba ; ChangeGroup}
+    C {$grupobaseline = $baseapp ; ChangeGroup}
+    D {$grupobaseline = $baseperso ; ChangeGroup}
+    Default {exit}
+    
+    }
+
+
+    
    }
 
 D {$funcao="especial"
