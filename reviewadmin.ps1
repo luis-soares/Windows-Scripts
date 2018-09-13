@@ -1,5 +1,82 @@
 #Feito por: Luis Antonio Soares da Silva (luissoares@outlook.com)
-#VER https://gallery.technet.microsoft.com/scriptcenter/site/search?f%5B0%5D.Type=RootCategory&f%5B0%5D.Value=localaccount&f%5B0%5D.Text=Gerenciamento%20de%20contas%20locais&f%5B1%5D.Type=SubCategory&f%5B1%5D.Value=groups&f%5B1%5D.Text=Grupos
+
+
+# SINAL DE CERTO [char]8730
+# SINAL DE ERRO  [char]215
+
+#parametros para ativar o menu -help etc
+param ( 
+[Parameter()] [ValidateSet('BancoIBI','BradescoCartoes','D9803D01','AmexDC')] [string[]] $loadcred,
+[Switch] $loadlist = $false,
+[Switch] $help = $false
+) 
+
+#Variables there are located Powershell Scripts, Admin Baselines, Admin Groups, Other Groups
+$folderPS = "C:\suporte windows\Scripts" #Powershell scripts base
+$folderbaseline = "C:\suporte windows\Lista\baseline" #Root folder of Baselines
+$AdminGroups = "administrators" #Lista de nomes (Administrators, Administradores)
+$OtherGroup = $null
+$specialgrpbkp = "power users","remote desktop users","backup operators"
+$specialgrpcoti = "power users","remote desktop users"
+
+
+
+#Valida se foi solicitado o HELP antes de carregar o MENU
+if ($help -ieq $true){
+Write-host "ValidateBaseline.ps1
+-loadcred (Load credentials to connect on server list | Ex: ValidateBaseline.ps1 -loadcred domain1)
+-loadlist (Load list of all servers, used to verify status with baseline definitions | Ex: ValidateBaseline.ps1 -loadlist)
+-help (Show this help)
+
+"
+exit
+}
+
+
+# HEAD
+Write-host -ForegroundColor Yellow " ==============================================================================="
+Write-host -ForegroundColor Yellow " ============= BASELINE: LIST | VALIDATE | CHANGE | SPECIAL GROUPS ============="
+Write-host -ForegroundColor Yellow " ==============================================================================="
+
+
+#Verifica se o Parametro de credenciais foi selecionado e solicita as credenciais do dominio
+switch ($loadcred) {
+    Bancoibi {$credIBI = Get-Credential -Message "Entrar com as credenciais do BANCOIBI"}
+    BradescoCartoes {$credbca = Get-Credential -Message "Entrar com as credenciais do BRADESCOCARTOES"}
+    D9803D01 {$credd98 = Get-Credential -Message "Entrar com as credenciais do D9803D01"}
+    AmexDC {$credamx = Get-Credential -Message "Entrar com as credenciais do AMEXDC"}
+    Default {$creddefault = $null}         
+}
+
+
+#Verifica se foi solicitado carregar a lista de baseline dos servidores (Vai carregar a lista inteira, pois nao e demorado)
+if ($loadlist -ieq $true){
+$serveribi = gci "$folderbaseline\BANCOIBI" -Recurse -Filter "*.txt"
+$serverd98 = gci "$folderbaseline\D9803D01" -Recurse -Filter "*.txt"
+$serverbca = gci "$folderbaseline\BRADESCOCARTOES" -Recurse -Filter "*.txt"
+$serveramx = gci "$folderbaseline\AMEXDC" -Recurse -Filter "*.txt"
+
+$serveribiSname = gci "$folderbaseline\BANCOIBI" -Recurse -Filter "*.txt"  |% {$_.name} |% {$_.split(".txt")} |findstr /R "[^0-9]"
+$serverd98Sname = gci "$folderbaseline\D9803D01" -Recurse -Filter "*.txt" |% {$_.name} |% {$_.split(".txt")} |findstr /R "[^0-9]"
+$serverbcaSname = gci "$folderbaseline\BRADESCOCARTOES" -Recurse -Filter "*.txt" |% {$_.name} |% {$_.split(".txt")} |findstr /R "[^0-9]"
+$serveramxSname = gci "$folderbaseline\AMEXDC" -Recurse -Filter "*.txt" |% {$_.name} |% {$_.split(".txt")} |findstr /R "[^0-9]"
+}
+
+
+#Verifica se o modulo esta na pasta
+$moduloGroupMembers = gci "$folderPS\Modules\GroupMembers" -ErrorAction SilentlyContinue
+if ($moduloGroupMembers) {
+    Import-Module -Name "$folderPS\Modules\GroupMembers"}
+ else
+    {write-host "Modulo GroupMembers não existe na pasta $folderPS\modules"
+     write-host "Baixar o Modulo GroupMembers e inserir na pasta $folderPS\modules"
+    exit
+    }
+
+
+
+
+#FUNCTIONS
 
 function mapserver {
 $mapdrive = New-PSDrive -Name $server -PSProvider "FileSystem" -Root "\\$server\c$" -Credential $cred -ErrorAction SilentlyContinue
@@ -78,10 +155,10 @@ Function Get-LocalGroupMemberComputers {
             Write-Verbose ("{0}: Testing if online" -f $Computer)
             $testConnectionHash.Computername = $Computer
             If (Test-Connection @testConnectionHash) {
-		        $adsicomputer = [ADSI]("WinNT://$Computer,computer")
-    	        $localgroup = $adsicomputer.children.find($Group)
+         $adsicomputer = [ADSI]("WinNT://$Computer,computer")
+             $localgroup = $adsicomputer.children.find($Group)
                 If ($localGroup) {
-    	            $localgroup.psbase.invoke("members") | ForEach {
+                 $localgroup.psbase.invoke("members") | ForEach {
                         Try {
                             $member = $_.GetType().InvokeMember("Name", 'GetProperty', $null, $_, $null)
                             If ($ValidMember -notcontains $member) {
@@ -194,13 +271,13 @@ Script to remove an AD User or group from the Administrators group
     
 .DESCRIPTION 
 The script can use either a plaintext file or a computer name as input and will remove the trustee (user or group) from the Administrators group on the computer
-	
+
 .PARAMETER InputFile
 A path that contains a plaintext file with computer names
 
 .PARAMETER Computer
 This parameter can be used instead of the InputFile parameter to specify a single computer or a series of computers using a comma-separated format
-	
+
 .PARAMETER Trustee
 The SamAccount name of an AD User or AD Group that is to be removed from the Administrators group
 
@@ -266,46 +343,46 @@ Will remove the User01 account to the Administrators group on all servers and co
     }
 
     if (!$InputFile) {
-	    $Computer | ForEach-Object {
-		    Write-Verbose "Removing '$ADResolved' from Administrators group on '$_'"
-		    try {
-			    ([adsi]"WinNT://$_/Administrators,group").psbase.remove($Trustee)
-			    Write-Verbose "Successfully completed command for '$ADResolved' on '$_'"
-		    } catch {
-			    Write-Warning $_
-		    }	
-	    }
+    $Computer | ForEach-Object {
+     Write-Verbose "Removing '$ADResolved' from Administrators group on '$_'"
+     try {
+      ([adsi]"WinNT://$_/Administrators,group").psbase.remove($Trustee)
+      Write-Verbose "Successfully completed command for '$ADResolved' on '$_'"
+     } catch {
+      Write-Warning $_
+     } 
+    }
     } else {
-	    if (!(Test-Path -Path $InputFile)) {
-		    Write-Warning 'Input file not found, please enter correct path'
-	    }
-	    Get-Content -Path $InputFile | ForEach-Object {
-		    Write-Verbose "Removing '$ADResolved' from Administrators group on '$_'"
-		    try {
-			    ([adsi]"WinNT://$_/Administrators,group").psbase.remove($Trustee)
-			    Write-Verbose 'Successfully completed command'
-		    } catch {
-			    Write-Warning $_
-		    }        
-	    }
+    if (!(Test-Path -Path $InputFile)) {
+     Write-Warning 'Input file not found, please enter correct path'
+    }
+    Get-Content -Path $InputFile | ForEach-Object {
+     Write-Verbose "Removing '$ADResolved' from Administrators group on '$_'"
+     try {
+      ([adsi]"WinNT://$_/Administrators,group").psbase.remove($Trustee)
+      Write-Verbose 'Successfully completed command'
+     } catch {
+      Write-Warning $_
+     }        
+    }
     }
 }
 
-function ADD-ADAccountLocalAdministrator {
+function Set-ADAccountasLocalAdministrator {
 <#
 .SYNOPSIS   
 Script to add an AD User or group to the Local Administrator group
     
 .DESCRIPTION 
 The script can use either a plaintext file or a computer name as input and will add the trustee (user or group) as an administrator to the computer
-	
+
 .PARAMETER InputFile
 A path that contains a plaintext file with computer names
 
 .PARAMETER Computer
 This parameter can be used instead of the InputFile parameter to specify a single computer or a series of
 computers using a comma-separated format
-	
+
 .PARAMETER Trustee
 The SamAccount name of an AD User or AD Group that is to be added to the Local Administrators group
 
@@ -367,78 +444,60 @@ if ($Trustee -notmatch '\\') {
 }
 
 if (!$InputFile) {
-	if (!$Computer) {
-		$Computer = Read-Host "Please input computer name"
-	}
-	[string[]]$Computer = $Computer.Split(',')
-	$Computer | ForEach-Object {
-		$_
-		Write-Host "Adding `'$ADResolved`' to Administrators group on `'$_`'"
-		try {
-			([ADSI]"WinNT://$_/Administrators,group").add($Trustee)
-			Write-Host -ForegroundColor Green "Successfully completed command for `'$ADResolved`' on `'$_`'"
-		} catch {
-			Write-Warning "$_"
-		}	
-	}
+if (!$Computer) {
+ $Computer = Read-Host "Please input computer name"
+}
+[string[]]$Computer = $Computer.Split(',')
+$Computer | ForEach-Object {
+ $_
+ Write-Host "Adding `'$ADResolved`' to Administrators group on `'$_`'"
+ try {
+  ([ADSI]"WinNT://$_/Administrators,group").add($Trustee)
+  Write-Host -ForegroundColor Green "Successfully completed command for `'$ADResolved`' on `'$_`'"
+ } catch {
+  Write-Warning "$_"
+ } 
+}
 }
 else {
-	if (!(Test-Path -Path $InputFile)) {
-		Write-Warning "Input file not found, please enter correct path"
-		exit
-	}
-	Get-Content -Path $InputFile | ForEach-Object {
-		Write-Host "Adding `'$ADResolved`' to Administrators group on `'$_`'"
-		try {
-			([ADSI]"WinNT://$_/Administrators,group").add($Trustee)
-			Write-Host -ForegroundColor Green "Successfully completed command"
-		} catch {
-			Write-Warning "$_"
-		}        
-	}
+if (!(Test-Path -Path $InputFile)) {
+ Write-Warning "Input file not found, please enter correct path"
+ exit
+}
+Get-Content -Path $InputFile | ForEach-Object {
+ Write-Host "Adding `'$ADResolved`' to Administrators group on `'$_`'"
+ try {
+  ([ADSI]"WinNT://$_/Administrators,group").add($Trustee)
+  Write-Host -ForegroundColor Green "Successfully completed command"
+ } catch {
+  Write-Warning "$_"
+ }        
+}
 }
 
 
 
 
 }
-
-
-function usergroup {
-
-
-#Get User local groups before Windows Server 2016
-
-#Load local groups to Variable
-$LocalGroups = Get-WmiObject Win32_Group -Filter "LocalAccount=True" | foreach { $_.Name }
-
-#Load user list to variable
-$UserList = gc 'C:\suporte windows\lista\usuarios.txt'
-
-# Validate every group to find users and write on screen
-foreach ($group in $LocalGroups) {
-
-
-$validate = net localgroup $group
-
-foreach ($user in $UserList){
-
-$exist = $validate |findstr -i $user 
-
-if ($exist -ne $null) {
-Write-host "User $user member of $group"
-Clear-Variable $validate -ErrorAction SilentlyContinue
-}
-
-
-
- }
-
- }
-
-} #TALVEZ USAR
 
 Function Listcomp {
+
+$list = read-host "Do you want verify in:
+- (L)ist of Computers
+- (D)omain List (Loaded)
+- (S)ingle computer
+
+"
+
+switch ($list){
+L {Write-host "insert computer list in file $folderbaseline\personal\list.txt"
+
+
+}
+
+
+
+
 foreach ($server in $servers){
 #$grupos = Get-LocalGroup -Name @("administrators","administradores") -ErrorAction SilentlyContinue 
 
@@ -450,7 +509,7 @@ foreach ($grupo in $grupos){
 #MAPEAMENTO DE SERVIDOR DE OUTROS DOMINIOS PARA CONECTAR PELO GTW
 mapserver
 
-Get-LocalGroupMemberComputers -Group $grupo -Computername $server 
+Get-LocalGroupMemberComputers -Group $group -Computername $server 
 
 unmap
 }
@@ -461,12 +520,65 @@ Write-host "============================================"
 
 } #FUNCIONANDO
 
+Function AdduserGroup {
 
 
+#para cada servidor (Feito na funcao ou no switch, fara:)
+#receber as informações do GET-LocalGroupMembers X Comparar com Baseline
 
+foreach ($server in $servers){
+
+ if($server -ieq "APP" -or $server -ieq "DBA" -or $server -ieq "DEFAULT") {"server invalido"}
+ else
+ {
+
+write-host "analisando $server... "
+mapserver
+
+$grupoatualcomparelist = Get-LocalGroupMemberComputers -Group "Administrators" -Computername $server|? {$_.name -or $_.account} -ErrorAction SilentlyContinue
+# $grupoatualcompare.account
+
+$validapersonalizado = $grupobaseline -match "$server"
+
+#EXIBE O NOME DO ARQUIVO BASE
+write-host "Arquivo baseline: $validapersonalizado " 
+
+$validabaseline = gc $validapersonalizado 
+
+
+foreach ($adm in $validabaseline){
+
+
+write-host "Sera incluido o usuario $adm no servidor $server"
+
+([ADSI]"WinNT://$server/Administrators,group").add($adm)
+
+<#
+
+if ($valida -ieq "true"){
+    write-host -ForegroundColor green "O grupo $adm esta correto." 
+    }
+else
+    {
+     Write-Host -ForegroundColor Red "O grupo $adm esta errado"
+    }
+ #>  #IF DESATIVADO
+   
+  # clear-variable valida 
+#> 
+  } #COMPARE ADM EM GRUPOS
+unmap
+
+ }
+
+}
+
+}
+
+<#
 Function RemoveGroup {
 foreach ($server in $servers){
-write-host "analisando $server... "
+write-host "Removendo Administradores do Servidor $server... "
 mapserver
 
 $grupoatualcomparelist = Get-LocalGroupMemberComputers -Group "Administrators" -Computername $server|? {$_.name -or $_.account} -ErrorAction SilentlyContinue
@@ -484,17 +596,8 @@ else
     {
      Write-Host -ForegroundColor Red "O grupo $adm do servidor $server esta errado e sera removido"
     #COMANDO DE REMOCAO
-    $grouprm = [ADSI]"WinNT://$server/Administrators,group"
-    $grouprm.Children(
-
-    #$grouprm.add("winnt://$server/originalti\$adm,user")
-    #$grouprm.Remove("WinNT://$server/originalti\$adm,user")
-    #$grouprm | select -Property *
-    }
-
-
     
-   
+   Remove-ADAccountasLocalAdministrator -Computer $server -Trustee $adm
    
 unmap
 
@@ -502,82 +605,165 @@ unmap
 
   }
 
-}  #CRIANDO
+} 
+}
+ #> #CRIANDO
 
-Function CompareGroup {
+Function RemoveGroup {
+
+
+
+}
+
+Function CompareGroup { #FUNCAO COMPARE PERSONALIZADO REMOVER APOS SCRIPT01
 #para cada servidor (Feito na funcao ou no switch, fara:)
 #receber as informações do GET-LocalGroupMembers X Comparar com Baseline
+if($server -ieq "APP" -or $server -ieq "DBA" -or $server -ieq "DEFAULT") {"server invalido"}
+ else
+ {
+
 
 foreach ($server in $servers){
+
+write-host " ============================= $server ======================= "
 write-host "analisando $server... "
 mapserver
 
 $grupoatualcomparelist = Get-LocalGroupMemberComputers -Group "Administrators" -Computername $server|? {$_.name -or $_.account} -ErrorAction SilentlyContinue
 # $grupoatualcompare.account
-<#TESTE
-{
-Get-LocalGroupMemberComputers -Group "Administrators" -Computername "docker01" |% {$_.name -or $_.account}
-Write-host $grupoatualcompare
-}
-#FIM TESTE
-#>
-#PAREI AQUI... COMPARE INVERTIDO
 
+$validapersonalizado = $grupobaseline -imatch "$server.txt"
+
+
+
+$validabaseline = $validapersonalizado 
+#EXIBE O NOME DO ARQUIVO BASE
+write-host "Arquivo baseline: $validapersonalizado " 
+#gc $validapersonalizado
+
+#ADD SERV_BACKUP - CORRIGIR NO BASELINE
+#write-host "ADD SERV_BACKUPTSM A ADMINS"
+#        C:\users\i315767x900\Desktop\Set-ADAccountasLocalAdministrator.ps1 -Computer $server -Trustee "serv_backuptsm"
+#        Add-groupmember -ComputerName $server -RemoteGroup "administrators" -User "serv_backuptsm" -Domain "bancoibi"  
+
+
+#write-host " ============================= $server ======================= "
+#write-host " ============================= ADMINS EXISTENTES ======================= "
+# Get-GroupMembers -Name $server -RemoteGroups "Administrators","Backup Operators","Power Users"
+
+#write-host " ============================= $server ======================= "
+Write-host "ADMINS ESPERADOS:"
+
+gc $validapersonalizado
+
+$validabaseline = gc $validapersonalizado 
+
+
+
+write-host "====================================="
+
+
+
+#foreach ($adduser in $validabaseline){.\PsExec.exe \\$server -h net localgroup administrators /add "$adduser" }
+
+
+#ESSE ADICIONA
+#foreach ($adduser in $validabaseline){C:\users\i315767x900\Desktop\Set-ADAccountasLocalAdministrator.ps1 -Computer $server -Trustee "$adduser" -domain "." }
+#foreach ($adduser in $validabaseline){Add-groupmember -ComputerName $server -RemoteGroup "administrators" -User $adduser -Domain "bancoibi"  }
+#foreach ($adduser in $validabaseline){Add-groupmember -ComputerName $server -RemoteGroup "administrators" -User $adduser  -domain "$server" }
+
+#ADD USUARIOS BACKUP
+#Add-groupmember -ComputerName $server -RemoteGroup "Backup Operators" -User "GG_TI_BACKUP" -Domain "bancoibi"  
+#Add-groupmember -ComputerName $server -RemoteGroup "Power Users" -User "GG_TI_BACKUP" -Domain "bancoibi"  
+#Add-groupmember -ComputerName $server -RemoteGroup "Remote Desktop Users" -User "GG_TI_BACKUP" -Domain "bancoibi"  
+#COTI
+#Add-groupmember -ComputerName $server -RemoteGroup "Remote Desktop Users" -User "GG_TI_COTI" -Domain "bancoibi"
+#Add-groupmember -ComputerName $server -RemoteGroup "Power Users" -User "GG_TI_COTI" -Domain "bancoibi"
+
+#Get-GroupMembers -Name $server -RemoteGroups "Administrators","Backup Operators","Power Users"
 
 #PARA CADA ADMIN QUE EXISTE, VOU PESQUISAR O BASELINE
 #foreach ($adm in $grupoatualcompare.account){write-host "teste $adm"}
 foreach ($adm in $grupoatualcomparelist.account){
 
-<#
-#foreach ($adm in "batata"){
-#$compare = $grupoatualcompare |findstr $adm
-#$basedefault
-#$valida = Get-LocalGroupMemberComputers -Group "Administrators" -ValidMember @("$adm") -Computername $server -ErrorAction SilentlyContinue |? {$_.account -ilike @("$basedefault")}
-#VERIFICAR MEMBRO NO BASELINE 
-#$adm = "domain admin"
-#>
-
-#$adm = "domain admins"
-
-$valida = "$grupobaseline" -match "$adm"
+$valida = "$validabaseline" -imatch "$adm"
 
 
-<#
-write-host "teste valida"
 
-write-host "baseline $grupobaseline"
-write-host "usuario $adm"
-
-$grupobaseline |findstr "$adm"
-
-write-host "fim do teste valida"
-#>
-
-#Get-LocalGroupMemberComputers -Group "Administrators" -ValidMember @("$adm") -Computername $server
-
-#write-host "$server"
-#write-host "DEBUG - Procurando $adm dentro do baseline" 
-
-
-#Get-LocalGroupMemberComputers -Group Administrators -Computername $server
+#Invoke-Command -scriptblock {(net localgroup administrators /add $adm)} -ComputerName $server 
 
 
 if ($valida -ieq "true"){
-    write-host -ForegroundColor green "O grupo $adm esta correto." 
+    write-host -ForegroundColor green "O grupo $adm esta correto no $server." 
     }
 else
     {
-     Write-Host -ForegroundColor Red "O grupo $adm esta errado"
+     Write-Host -ForegroundColor Red "O grupo $adm esta errado no $server ."
+
+     
+     #$remadmin = Read-host "O usuario $adm sera removido do grupo administrators, confirme para continuar (S)"
+     
+     
+     #$remadmin = "s"
+     #if ($remadmin -ieq "s") {write-host "Remover usuario $adm";
+     #Remove-ADAccountasLocalAdministrator -Computer $server -Trustee $adm
+     #Remove-groupmember -ComputerName $server -RemoteGroup "administrators" -User $adm -Domain "bancoibi"
+
+
     }
-   
+
    
   # clear-variable valida 
 #> 
   } #COMPARE ADM EM GRUPOS
+
+ 
+foreach ($adm2 in $validabaseline){
+
+
+$admval = $adm2 -replace 'bancoibi','' -replace 'd9803d01','' -replace 'bradescocartoes','' -replace '(\\)',''
+
+
+
+#SE O USUARIO FIZER PARTE DO BASELINE E NAO TIVER NA MAQUINA, ADICIONAR
+$validabase = $grupoatualcomparelist.account -imatch $admval
+
+
+
+   
+if ($validabase -icontains "$admval"){
+    #write-host -ForegroundColor green "O grupo $adm esta correto no $server." 
+    $val="usuario ja esta admin"
+    }
+else
+    {
+     Write-Host -ForegroundColor Cyan "Usuario $admval esta no baseline, mas nao no $server. Adicionar."
+
+
+
+
+#        C:\users\i315767x900\Desktop\Set-ADAccountasLocalAdministrator.ps1 -Computer $server -Trustee "$admval"
+#        Add-groupmember -ComputerName $server -RemoteGroup "administrators" -User $admval -Domain "bancoibi"
+#        Add-groupmember -ComputerName $server -RemoteGroup "administrators" -User $admval  -domain "$server"
+    
+#        C:\users\i315767x900\Desktop\Set-ADAccountasLocalAdministrator.ps1 -Computer $server -Trustee "serv_backuptsm"
+#        Add-groupmember -ComputerName $server -RemoteGroup "administrators" -User "serv_backuptsm" -Domain "bancoibi"  
+        
+
+    }
+
+
+}
+
+
+
+
 unmap
 
  }
-} #FUNCIONANDO
+ }
+ }
+
 
 Function SpecialGroup {
 
@@ -591,36 +777,68 @@ Function baselinegroup {
 } #CRIANDO
 
 
-#CARREGA BASELINE VAR
+
+
+<#
+#CARREGA BASELINE VARIAVEL
 $baseapp = gc 'C:\Suporte Windows\Lista\baseline\aplicacao.txt'
 $basedba = gc 'C:\Suporte Windows\Lista\baseline\dba.txt'
 $baseprod = gc 'C:\Suporte Windows\Lista\baseline\producao.txt'
 $basedefault = gc 'C:\Suporte Windows\Lista\baseline\default.txt'
 $basepersosrv = gci 'C:\Suporte Windows\Lista\baseline\personalizado\' |% {$_.name} |% {$_.split(".txt")} |findstr /R "[^0-9]"
+#>
 
 
-#TESTE DO BASELINE PERSONALIZADO
-#foreach ($teste in $baseperso){write-host "servidor $teste"}
+
+#MENU
+$activity = Read-Host "What do you want to do:
+(A) List Groups
+(B) Validate Groups - Based on Baseline
+(C) Change/Correct Groups - Based on Baseline
+(D) Special Group
+(X) Exit
+"
+Switch ($activity){
+
+A {$activity="List"
+  }
+
+ 
+B {$activity="validate"
+  }
+
+C {$activity="change"
+  }
 
 
-$serverbase
+D {$activity="special"
+  }
 
-$gruposadm = "administradores","administrators"
-$specialgrpbkp = "power users","remote desktop users","backup operators"
-$specialgrpcoti = "power users","remote desktop users"
+X {write-host "Exit!" -ForegroundColor Red
+    exit
+  }
 
-$serveribi = "C:\Suporte Windows\Lista\serveribi.txt"
-$serverd98 = "C:\Suporte Windows\Lista\serverd98.txt"
-$serverbca = "C:\Suporte Windows\Lista\servercartoes.txt"
-$serveramx = "C:\Suporte Windows\Lista\serveramx.txt"
+Default {write-host "Not valid" -ForegroundColor Red}
+
+}
 
 
+
+
+
+
+
+
+
+
+<# CRIA ARQUIVOS SERVIDORES - REMOVER COMENTARIO APOS SCRIPT 01
 Write-Host $null >> $serveribi
 Write-Host $null >> $serverd98
 Write-Host $null >> $serverbca
 Write-Host $null >> $serveramx
+#> # CRIA ARQUIVOS SERVIDORES (EM BRANCO SE NAO EXISTIR) - REMOVER COMENTARIO APOS SCRIPT 01
 
-
+<# ORIGINAL - VOLTAR APOS SCRIPT 01
 $domain = Read-Host "Qual dominio vai verificar?
 (A) BANCOIBI
 (B) D9803D01
@@ -663,6 +881,18 @@ switch ($domain){
     
     Default {Write-host "Invalido"; exit}
         } #FIM VERIFICA DOMINIO
+#> #VERIFICA DOMINIO ORIGINAL - VOLTAR APOS CONCLUIR SCRIPT 01
+
+<# DEFINE TODAS AS CREDENCIAIS PARA SCRIPT INICIAL (PARTE DE SCRIPT01)
+$credIBI = Get-Credential -Message "Entrar com as credenciais do BANCOIBI"
+$credd98 = Get-Credential -Message "Entrar com as credenciais do D9803D01"
+$credbca = Get-Credential -Message "Entrar com as credenciais do BRADESCOCARTOES"
+$credamx = Get-Credential -Message "Entrar com as credenciais do AMEXDC"
+
+#> #FIM DEFINE CRED INICIAIS (PARTE DE SCRIPT01)
+
+
+<#FUNCOES ORIGINAIS - REMOVER COMENTARIO APOS SCRIPT 01 
 
 
 $funcao = Read-Host "O que deseja fazer:
@@ -673,12 +903,12 @@ $funcao = Read-Host "O que deseja fazer:
 switch ($funcao){
 
 A {$funcao="lista";listcomp
-    $grupos = $gruposadm
+    $grupos = $AdminGroups
  }
 
  
 B {$funcao="valida" 
-    $grupos = $gruposadm
+    $grupos = $AdminGroups
     $baseline = Read-Host "Qual baseline para comparacao?
     (A) PADRAO
     (B) BANCO DE DADOS
@@ -696,7 +926,7 @@ B {$funcao="valida"
   }
 
 C {$funcao="altera"
-    $grupos = $gruposadm
+    $grupos = $AdminGroups
     $baseline = Read-Host "Qual baseline sera aplicado?
     (A) PADRAO
     (B) BANCO DE DADOS
@@ -719,7 +949,7 @@ C {$funcao="altera"
 D {$funcao="especial"
     
     
-    $grupos = $grupo
+    $grupos = $group
     $baseline = Read-Host "Serao aplicadas permissoes para os grupos COTI e BACKUP
     nos grupos locais:
     (A) PADRAO
@@ -733,37 +963,297 @@ D {$funcao="especial"
 
 }
 
+#> #FUNCOES ORIGINAIS - REMOVER COMENTARIO APOS SCRIPT 01 
 
 
 <#
+write-host "HELP - carregados:
+- credenciais de todos os dominios; (Nao sera carregado novamente - credIBI,credd98,credbca,credamx)
+- lista de servidores recursivos pegando o nome do arquivo; (Sera usado para definir os servidores, baselines e arquivos de origem)
+(CARREGA Somente o nome dos servidores na variavel exemplo:serveramxSname e na variavel exemplo:serveramx carrega as informacoes do arquivo)
+Usar o caminho C:\suporte windows\Lista\baseline 
+- Variavel validadomains, passando a credencial do dominio e a lista de servidores
 
-#$servers = gc "C:\Users\lui_e\Desktop\servers.txt"
-
-#$servers="wks01mp"
-foreach ($server in $servers){
-#$grupos = Get-LocalGroup -Name @("administrators","administradores") -ErrorAction SilentlyContinue 
-
-Write-host "Servidor $server " 
-
-
-Write-host "Administradores:" 
-
-foreach ($grupo in $grupos){
-
-#MAPEAMENTO DE SERVIDOR DE OUTROS DOMINIOS PARA CONECTAR PELO GTW
-$mapdrive = New-PSDrive -Name $server -PSProvider "FileSystem" -Root "\\$server\c$" -Credential $cred -ErrorAction SilentlyContinue
-
-Get-LocalGroupMemberComputers -Group $grupo -Computername $server 
-
-Remove-PSDrive -Name $server -ErrorAction SilentlyContinue
-}
-
-Write-host "============================================"  
-
-}
-
+" #INSTRUCOES SCRIPT01
 #>
 
+<#COMECO VALIDADOMAINS - SCRIPT 01 - REMOVER APOS CONCLUSAO #>
 
-#Clear-Variable 
-#Stop-Transcript
+function validatodosdom {
+
+#$validadomains = "amex","ibi","bradescocartoes","d9803"
+$validadomains = "ibi"
+foreach ($domain in $validadomains){
+   switch ($domain){
+    amex {
+    write-host "Verificando $domain"
+    $servers = $serveramxSname
+    $cred = $credamx
+          
+                switch ($funcao){
+
+                A {$funcaoteste="lista";listcomp
+                    $grupos = $AdminGroups
+                 }
+
+ 
+                B {$funcaoteste="valida" 
+                    $grupos = $AdminGroups
+                    $baseline = "D"
+                    write-host "SCRIPT 01 APENAS PERSONALIZADO"
+                    write-host "(D) PERSONALIZADO"
+    
+
+    
+                    switch ($baseline) {
+                    D {$grupobaseline = $serveramx.fullname -ilike "*.txt" ; CompareGroup}
+                    Default {exit}
+                    }
+
+                  }
+
+                C {$funcaoteste="altera"
+                    $grupos = $AdminGroups
+                    $baseline = Read-Host "Qual baseline sera aplicado?
+                    (A) PADRAO
+                    (B) BANCO DE DADOS
+                    (C) APLICACOES
+                    (D) PERSONALIZADO
+                    "
+                    switch ($baseline) {
+
+                    D {$grupobaseline = $serveramx.fullname ; ChangeGroup}
+                    Default {exit}
+    
+                    }
+
+
+    
+                   }
+
+                D {$funcaoteste="especial"
+    
+    
+                    $grupos = $group
+                    $baseline = Read-Host "Serao aplicadas permissoes para os grupos COTI e BACKUP
+                    nos grupos locais:
+                    (A) PADRAO
+                    (B) BANCO DE DADOS
+                    (C) APLICACOES
+                    (D) PERSONALIZADO
+                    " 
+                    SpecialGroup
+                    }
+
+
+                }
+
+          }
+    ibi {
+    "Verificando $domain"
+    $servers = $serveribiSname
+         $cred = $credIBI
+        
+        switch ($funcao){
+
+                A {$funcaoteste="lista";listcomp
+                    $grupos = $AdminGroups
+                 }
+
+ 
+                B {$funcaoteste="valida" 
+                    $grupos = $AdminGroups
+                    $baseline = "BASED"
+                    write-host "SCRIPT 01 APENAS PERSONALIZADO"
+                    write-host "(D) PERSONALIZADO"
+    
+
+
+
+     
+                    switch ($baseline) {
+                   BASED {$grupobaseline = $serveribi.fullname -ilike "*.txt" ; CompareGroup}
+                    Default {exit}
+                    }
+
+
+                    #$serveribi |fl
+
+                  }
+
+                C {$funcaoteste="altera"
+                    $grupos = $AdminGroups
+                    $baseline = "BASED"
+                   
+                    switch ($baseline) {
+                   BASED {$grupobaseline = $serveribi.fullname -ilike "*.txt" ; ChangeGroup}
+           
+                    Default {exit}
+    
+                    }
+
+
+    
+                   }
+
+                D {$funcaoteste="especial"
+    
+    
+                    $grupos = $group
+                    $baseline = Read-Host "Serao aplicadas permissoes para os grupos COTI e BACKUP
+                    nos grupos locais:
+                    (A) PADRAO
+                    (B) BANCO DE DADOS
+                    (C) APLICACOES
+                    (D) PERSONALIZADO
+                    " 
+                    SpecialGroup
+                    }
+
+
+                }
+        
+        
+        }
+    bradescocartoes {
+    "Verificando $domain"
+    $servers = $serverbcaSname
+         $cred = $credbca
+       
+       switch ($funcao){
+
+                A {$funcaoteste="lista";listcomp
+                    $grupos = $AdminGroups
+                 }
+
+ 
+                B {$funcaoteste="valida" 
+                    $grupos = $AdminGroups
+                    $baseline = "D"
+                    write-host "SCRIPT 01 APENAS PERSONALIZADO"
+                    write-host "(D) PERSONALIZADO"
+    
+
+
+
+
+    
+                    switch ($baseline) {
+                    C {$grupobaseline = $serverbca.fullname ; CompareGroup}
+                    D {$grupobaseline = $baseperso ; CompareGroup}
+                    Default {exit}
+                    }
+
+                  }
+
+                C {$funcaoteste="altera"
+                    $grupos = $AdminGroups
+                    $baseline = Read-Host "Qual baseline sera aplicado?
+                    (A) PADRAO
+                    (B) BANCO DE DADOS
+                    (C) APLICACOES
+                    (D) PERSONALIZADO
+                    "
+                    switch ($baseline) {
+                    BASED {$grupobaseline = $serverd98.fullname  -ilike "*.txt" ; CompareGroup}
+                    Default {exit}
+    
+                    }
+
+
+    
+                   }
+
+                D {$funcaoteste="especial"
+    
+    
+                    $grupos = $group
+                    $baseline = Read-Host "Serao aplicadas permissoes para os grupos COTI e BACKUP
+                    nos grupos locais:
+                    (A) PADRAO
+                    (B) BANCO DE DADOS
+                    (C) APLICACOES
+                    (D) PERSONALIZADO
+                    " 
+                    SpecialGroup
+                    }
+
+
+                }
+       
+       
+        }
+    d9803 {
+    "Verificando $domain"
+    $servers = $serverd98Sname
+    $cred = $credd98
+        
+        switch ($funcao){
+
+                A {$funcaoteste="lista";listcomp
+                    $grupos = $AdminGroups
+                 }
+
+ 
+                B {$funcaoteste="valida" 
+                    $grupos = $AdminGroups
+                    $baseline = "BASED"
+                    write-host "SCRIPT 01 APENAS PERSONALIZADO"
+                    write-host "(D) PERSONALIZADO"
+    
+                    switch ($baseline) {
+                    
+                    BASED {$grupobaseline = $serverd98.fullname  -ilike "*.txt" ; CompareGroup}
+                    Default {exit}
+                    }
+
+                  }
+
+                C {$funcaoteste="altera"
+                    $grupos = $AdminGroups
+                    $baseline = Read-Host "Qual baseline sera aplicado?
+                    (A) PADRAO
+                    (B) BANCO DE DADOS
+                    (C) APLICACOES
+                    (D) PERSONALIZADO
+                    "
+                    switch ($baseline) {
+
+                    BASED {$grupobaseline =  $serverd98.fullname  -ilike "*.txt" ; ChangeGroup}
+                    Default {exit}
+    
+                    }
+
+
+    
+                   }
+
+                D {$funcaoteste="especial"
+    
+    
+                    $grupos = $group
+                    $baseline = Read-Host "Serao aplicadas permissoes para os grupos COTI e BACKUP
+                    nos grupos locais:
+                    (A) PADRAO
+                    (B) BANCO DE DADOS
+                    (C) APLICACOES
+                    (D) PERSONALIZADO
+                    " 
+                    SpecialGroup
+                    }
+
+
+                }
+        
+        
+        }
+    default {"Invalido"}
+
+   
+   
+   }
+
+  }
+}
+
+<#FIM VALIDADOMAINS - SCRIPT 01 - REMOVER APOS CONCLUSAO #>
