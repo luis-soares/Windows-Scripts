@@ -18,7 +18,14 @@ $AdminGroups = "administrators" #Lista de nomes (Administrators, Administradores
 $OtherGroup = $null
 $specialgrpbkp = "power users","remote desktop users","backup operators"
 $specialgrpcoti = "power users","remote desktop users"
+$domain1 = "AmexDC"
+$domain2 = "BancoIBI"
+$domain3 = "BradescoCartoes"
+$domain4 = "D9803D01"
+$domains = ($domain1,$domain2,$domain3,$domain4,$domain5,$domain6,$domain7,$domain8,$domain9,$domain10,$domain11,$domain12)
 
+#mkdir "C:\suporte windows\Lista\baseline\personal"
+#write-host $null > notepad "C:\suporte windows\Lista\baseline\personal\list.txt"
 
 
 #Valida se foi solicitado o HELP antes de carregar o MENU
@@ -48,6 +55,59 @@ switch ($loadcred) {
     Default {$creddefault = $null}         
 }
 
+
+
+#Function to identify which object is to be checked
+function Object {
+Do {
+    $actswitch = read-host "Do you want $activity in:
+    - (L)ist of Computers
+    - (D)omain List (Loaded)
+    - (S)ingle computer
+    - (M)enu
+    "
+
+    switch ($actswitch){
+    L {Write-host "insert computer list in file $folderbaseline\personal\list.txt"
+        Read-Host "Press <Enter> to continue..."
+        $serverlist = gc "$folderbaseline\personal\list.txt" 
+      }
+
+    D {Write-host "Which domain do you want to $activity ?
+    - (1) $domain1
+    - (2) $domain2
+    - (3) $domain3
+    - (4) $domain4
+
+    "
+      $domainselect = Read-Host "Please insert your choice"
+
+          switch ($domainselect){
+          1 { Write-host "Checking $domain1 ..."
+            }
+          2 { Write-host "Checking $domain2 ..."
+            }
+          3 { Write-host "Checking $domain3 ..."
+            }
+          4 { Write-host "Checking $domain4 ..."
+            }
+
+          Default { Write-host -ForegroundColor Red "Invalid Selection..."}
+           }
+      }
+
+    S {Write-host "insert computer list in file $folderbaseline\personal\list.txt"
+      }
+    
+    M {Write-host "Opening the Menu ..."}
+
+    Default { Write-host -ForegroundColor Red "Invalid Selection, please check... to menu (M)"}
+    
+    }
+
+} until ( $actswitch -imatch "M")
+
+}
 
 #Verifica se foi solicitado carregar a lista de baseline dos servidores (Vai carregar a lista inteira, pois nao e demorado)
 if ($loadlist -ieq $true){
@@ -482,19 +542,7 @@ Get-Content -Path $InputFile | ForEach-Object {
 
 Function Listcomp {
 
-$list = read-host "Do you want verify in:
-- (L)ist of Computers
-- (D)omain List (Loaded)
-- (S)ingle computer
-
-"
-
-switch ($list){
-L {Write-host "insert computer list in file $folderbaseline\personal\list.txt"
-
-
-}
-
+#SELECT TESTE - TEMP DRAFT
 
 
 
@@ -791,38 +839,44 @@ $basepersosrv = gci 'C:\Suporte Windows\Lista\baseline\personalizado\' |% {$_.na
 
 
 #MENU
-$activity = Read-Host "What do you want to do:
-(A) List Groups
-(B) Validate Groups - Based on Baseline
-(C) Change/Correct Groups - Based on Baseline
-(D) Special Group
-(X) Exit
-"
-Switch ($activity){
 
-A {$activity="List"
-  }
+do{
+    $activity = Read-Host "What do you want to do:
+    (A) List Groups
+    (B) Validate Groups - Based on Baseline
+    (C) Change/Correct Groups - Based on Baseline
+    (D) Special Group
+    (X) Exit
+    "
+    Switch ($activity){
+
+    A {$opt="List"
+      object #Function to identify which object is to be checked
+      }
 
  
-B {$activity="validate"
-  }
+    B {$opt="validate"
+        object #Function to identify which object is to be checked
+      }
 
-C {$activity="change"
-  }
-
-
-D {$activity="special"
-  }
-
-X {write-host "Exit!" -ForegroundColor Red
-    exit
-  }
-
-Default {write-host "Not valid" -ForegroundColor Red}
-
-}
+    C {$opt="change"
+        object #Function to identify which object is to be checked
+      }
 
 
+    D {$opt="special"
+        object #Function to identify which object is to be checked
+      }
+
+    X {write-host "Exit!" -ForegroundColor Red
+        exit
+      }
+
+    Default {write-host "Not valid, please verify... to Exit (X)" -ForegroundColor Red}
+
+    }
+
+}until ($activity -imatch "X")
 
 
 
