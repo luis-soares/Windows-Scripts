@@ -1,3 +1,5 @@
+# Luis Antonio Soares da Silva (lui_eu@msn.com / luissoares@outlook.com)
+
 #Hosts Hyper-v
 
 #Recebendo informações do Cluster
