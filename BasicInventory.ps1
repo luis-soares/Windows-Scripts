@@ -1,4 +1,5 @@
 # Luis Antonio Soares da Silva (lui_eu@msn.com / luissoares@outlook.com)
+# Exit to file. In powershell/cmd exec: powershell -file BasicInventory.ps1 .\log.log > LogInvent.log
 
 $computers = Get-ADComputer -SearchBase "Ou=Servers,DC=Luren,DC=LAB" -filter * |select Name,DistinguishedName
 
