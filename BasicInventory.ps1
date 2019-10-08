@@ -47,7 +47,7 @@ function CPUINFO {
  #Media de Utilizacao CPUs
  $global:cpu = Get-WmiObject -computername $computer win32_processor | Measure-Object -property LoadPercentage -Average | Select Average
  #Nucleo de CPUs
- $global:vcpu = Get-WmiObject -computername $computer win32_processor |select SocketDesignation |Measure-Object | select Count
+ $global:vcpu = Get-WmiObject -computername $computer win32_processor
 } #CPU INFOs
 
 function MEMINFO {
@@ -140,7 +140,7 @@ foreach ($computer in $computers.name) {
     #CRIAR IF PARA ITENS MONITORADOS
     
         write-host "Nome:" $hostname ";"
-        write-host "Nucleos CPU:" $vcpu ";"
+        write-host "Nucleos CPU:" $vcpu.NumberOfLogicalProcessors ";"
         Write-host "Uso de CPU:" $cpu ";" 
         Write-host "Memoria Total (GB):" $memoriatotal ";"
         Write-host "Uso de Memoria:" $memoria ";"
