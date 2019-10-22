@@ -1,4 +1,5 @@
-#Folder IIS
+# Luis Antonio Soares da Silva (lui_eu@msn.com / luissoares@outlook.com)
+# Folder IIS
 cd "C:\windows\system32\inetsrv\"
 
 #Find all application pool without names sistema and servicos
